@@ -8,7 +8,7 @@
 
 > It has not been audited nor battle-tested and does not provide high-availability nor durability.
 
-That said, this is a cloud-config script designed to use nginx as an SSL proxy in front of Redis.
+That said, this is a cloud-config script designed to be used as a template to setup nginx as an SSL proxy in front of Redis.
 
 ## What it does
 
