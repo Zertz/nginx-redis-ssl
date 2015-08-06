@@ -1,0 +1,222 @@
+#cloud-config
+apt_update: true
+package_upgrade: true
+packages:
+  # common
+  - make
+  # ngx_openresty
+  - libreadline-dev
+  - libncurses5-dev
+  - libpcre3-dev
+  - libssl-dev
+  - perl
+  # redis
+  - gcc
+  - libc6-dev
+  - curl
+users:
+  - name: ubuntu
+    ssh-authorized-keys:
+      #################
+      # Your public key
+      - ...
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    groups: sudo
+    shell: /bin/bash
+write_files:
+  - path: /etc/nginx/sites-available/redis_proxy
+    content: |
+      worker_processes 2;
+      
+      events {
+        worker_connections 512;
+      }
+      
+      http {
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_prefer_server_ciphers on;
+        ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS !MEDIUM";
+        ssl_dhparam /etc/nginx/ssl/dhparams.pem;
+        
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+        add_header X-Frame-Options SAMEORIGIN;
+        
+        server {
+          listen 443 ssl;
+          
+          server_name my.example.com;
+          
+          ssl_certificate /etc/nginx/ssl/nginx.crt;
+          ssl_certificate_key /etc/nginx/ssl/nginx.key;
+          
+          location /get {
+            set_unescape_uri $auth $arg_auth;
+            set_unescape_uri $key $arg_key;
+            redis2_query auth $auth;
+            redis2_query get $key;
+            redis2_pass 127.0.0.1:6379;
+          }
+          
+          location /set {
+            set_unescape_uri $auth $arg_auth;
+            set_unescape_uri $key $arg_key;
+            set_unescape_uri $val $arg_val;
+            redis2_query auth $auth;
+            redis2_query set $key $val;
+            redis2_pass 127.0.0.1:6379;
+          }
+        }
+      }
+  - path: /etc/init.d/nginx
+    content: |
+      PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+      DESC="Nginx Daemon"
+      NAME=nginx
+      PREFIX=/usr/local/openresty/nginx
+      DAEMON=$PREFIX/sbin/$NAME
+      CONF=/etc/nginx/sites-available/redis_proxy
+      PID=$PREFIX/logs/$NAME.pid
+      SCRIPT=/etc/init.d/$NAME
+      
+      if [ ! -x "$DAEMON" ] || [ ! -f "$CONF" ]; then
+        echo -e "\033[33m $DAEMON has no permission to run. \033[0m"
+        echo -e "\033[33m Or $CONF doesn't exist. \033[0m"
+        sleep 1
+        exit 1
+      fi
+      
+      do_start() {
+        if [ -f $PID ]; then
+          echo -e "\033[33m $PID already exists. \033[0m"
+          echo -e "\033[33m $DESC is already running or crashed. \033[0m"
+          echo -e "\033[32m $DESC Reopening $CONF ... \033[0m"
+          $DAEMON -s reopen -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC reopened. \033[0m"
+        else
+          echo -e "\033[32m $DESC Starting $CONF ... \033[0m"
+          $DAEMON -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC started. \033[0m"
+        fi
+      }
+      
+      do_stop() {
+        if [ ! -f $PID ]; then
+          echo -e "\033[33m $PID doesn't exist. \033[0m"
+          echo -e "\033[33m $DESC isn't running. \033[0m"
+        else
+          echo -e "\033[32m $DESC Stopping $CONF ... \033[0m"
+          $DAEMON -s stop -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC stopped. \033[0m"
+        fi
+      }
+      
+      do_reload() {
+        if [ ! -f $PID ]; then
+          echo -e "\033[33m $PID doesn't exist. \033[0m"
+          echo -e "\033[33m $DESC isn't running. \033[0m"
+          echo -e "\033[32m $DESC Starting $CONF ... \033[0m"
+          $DAEMON -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC started. \033[0m"
+        else
+          echo -e "\033[32m $DESC Reloading $CONF ... \033[0m"
+          $DAEMON -s reload -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC reloaded. \033[0m"
+        fi
+      }
+      
+      do_quit() {
+        if [ ! -f $PID ]; then
+          echo -e "\033[33m $PID doesn't exist. \033[0m"
+          echo -e "\033[33m $DESC isn't running. \033[0m"
+        else
+          echo -e "\033[32m $DESC Quitting $CONF ... \033[0m"
+          $DAEMON -s quit -c $CONF
+          sleep 1
+          echo -e "\033[36m $DESC quitted. \033[0m"
+        fi
+      }
+      
+      do_test() {
+        echo -e "\033[32m $DESC Testing $CONF ... \033[0m"
+        $DAEMON -t -c $CONF
+      }
+      
+      do_info() {
+        $DAEMON -V
+      }
+      
+      case "$1" in
+        start)
+        do_start
+        ;;
+        stop)
+        do_stop
+        ;;
+        reload)
+        do_reload
+        ;;
+        restart)
+        do_stop
+        do_start
+        ;;
+        quit)
+        do_quit
+        ;;
+        test)
+        do_test
+        ;;
+        info)
+        do_info
+        ;;
+        *)
+        echo "Usage: $SCRIPT {start|stop|reload|restart|quit|test|info}"
+        exit 2
+        ;;
+      esac
+      
+      exit 0
+runcmd:
+  # ssh
+  - sed -i -e '/^PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i -e '$aAllowUsers ubuntu' /etc/ssh/sshd_config
+  - restart ssh
+  # ufw
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 443/tcp
+  - ufw enable
+  # ssl
+  - mkdir /etc/nginx/ssl
+  - openssl req -x509 -nodes -days 365 -newkey rsa:4096 -subj "/C=CA/ST=MyState/L=MyCity/O=MyOrganization /CN=my.example.com" -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
+  - openssl dhparam -out /etc/nginx/ssl/dhparams.pem 4096
+  # redis
+  - curl -sSL http://download.redis.io/releases/redis-stable.tar.gz -o /tmp/redis.tar.gz
+  - mkdir -p /tmp/redis
+  - tar -xzf /tmp/redis.tar.gz -C /tmp/redis --strip-components=1
+  - make -C /tmp/redis
+  - make -C /tmp/redis install
+  - echo -n | /tmp/redis/utils/install_server.sh
+  - rm -rf /tmp/redis*
+  - sysctl vm.overcommit_memory=1
+  - sed -ie 's/# bind 127.0.0.1/bind 127.0.0.1/g' /etc/redis/6379.conf
+  - sed -ie '/^# requirepass/s/^.*$/requirepass MyVeryComplexPassword/' /etc/redis/6379.conf
+  - service redis_6379 restart
+  # ngx_openresty
+  - wget http://openresty.org/download/ngx_openresty-1.7.10.2.tar.gz
+  - tar xzvf ngx_openresty-1.7.10.2.tar.gz
+  - cd ngx_openresty-1.7.10.2/
+  - ./configure --with-pcre-jit --with-ipv6
+  - make
+  - make install
+  - chmod +x /etc/init.d/nginx
+  - update-rc.d nginx defaults
+  - service nginx restart
+power_state:
+  mode: reboot
+  timeout: 30
