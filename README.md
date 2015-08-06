@@ -6,7 +6,7 @@
 
 ## Disclaimer #2
 
-> It has not been audited, battle-tested and does not provide high-availability and durability.
+> It has not been audited nor battle-tested and does not provide high-availability nor durability.
 
 That said, this is a cloud-config script designed to use nginx as an SSL proxy in front of Redis.
 
