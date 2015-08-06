@@ -36,7 +36,7 @@ That said, this is a cloud-config script designed to use nginx as an SSL proxy i
 - openssl req -x509 -nodes -days 365 -newkey rsa:4096 -subj "/C=CA/ST=MyState/L=MyCity/O=MyOrganization /CN=my.example.com" -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
 - openssl dhparam -out /etc/nginx/ssl/dhparams.pem 4096
 
-## Redis
+### Redis
 
 > install, bind to 127.0.0.1 and set a password (it should be *very* long)
 
@@ -45,7 +45,7 @@ That said, this is a cloud-config script designed to use nginx as an SSL proxy i
 - sed -ie '/^# requirepass/s/^.*$/requirepass MyVeryComplexPassword/' /etc/redis/6379.conf
 - ...
 
-## nginx
+### nginx
 
 > installed from source, creates a daemon, listens for SSL connections and implements forward secrecy
 
