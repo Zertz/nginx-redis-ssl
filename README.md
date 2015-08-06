@@ -16,8 +16,10 @@ That said, this is a cloud-config script designed to use nginx as an SSL proxy i
 
 > root login is forbidden and only the `ubuntu` user may SSH in.
 
-- sed -i -e '/^PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
-- sed -i -e '$aAllowUsers ubuntu' /etc/ssh/sshd_config
+```
+sed -i -e '/^PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i -e '$aAllowUsers ubuntu' /etc/ssh/sshd_config
+```
 
 ### Uncomplicated Firewall
 
