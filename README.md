@@ -23,36 +23,34 @@ That said, this is a cloud-config script designed to use nginx as an SSL proxy i
 
 > incoming connections are only allowed on port 22 (SSH) and 443 (HTTPS)
 
-- ufw default deny incoming
-- ufw default allow outgoing
-- ufw allow 22/tcp
-- ufw allow 443/tcp
+```
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp
+ufw allow 443/tcp
+```
 
 ### SSL
 
 > generate a self-signed certificate amd Diffie-Hellman parameters for forward secrecy (depending on your machine, this key takes a while to generate)
 
-- mkdir /etc/nginx/ssl
-- openssl req -x509 -nodes -days 365 -newkey rsa:4096 -subj "/C=CA/ST=MyState/L=MyCity/O=MyOrganization /CN=my.example.com" -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
-- openssl dhparam -out /etc/nginx/ssl/dhparams.pem 4096
+```
+openssl req -x509 -nodes -days 365 -newkey rsa:4096 -subj "/C=CA/ST=MyState/L=MyCity/O=MyOrganization /CN=my.example.com" -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt
+openssl dhparam -out /etc/nginx/ssl/dhparams.pem 4096
+```
 
 ### Redis
 
 > install, bind to 127.0.0.1 and set a password (it should be *very* long)
 
-- ...
-- sed -ie 's/# bind 127.0.0.1/bind 127.0.0.1/g' /etc/redis/6379.conf
-- sed -ie '/^# requirepass/s/^.*$/requirepass MyVeryComplexPassword/' /etc/redis/6379.conf
-- ...
+```
+sed -ie 's/# bind 127.0.0.1/bind 127.0.0.1/g' /etc/redis/6379.conf
+sed -ie '/^# requirepass/s/^.*$/requirepass MyVeryComplexPassword/' /etc/redis/6379.conf
+```
 
 ### nginx
 
 > installed from source, creates a daemon, listens for SSL connections and implements forward secrecy
-
-As of August 6th 2015, it gets the following score in the [Qualys SSL Server Test](https://www.ssllabs.com/ssltest/)
-- Protocol Support 95
-- Key Exchange 100
-- Cipher Strength 90
 
 ```nginx
 # truncated for brevity
@@ -73,9 +71,15 @@ http {
 }
 ```
 
+As of August 6th 2015, it gets the following score in the [Qualys SSL Server Test](https://www.ssllabs.com/ssltest/)
+- Protocol Support 95
+- Key Exchange 100
+- Cipher Strength 90
+
 ## Known issues
 
 1. `redis-server` runs with root privileges`
+1. Directories where the SSL certificate and key need stricter permissions
 1. Ubuntu hangs when rebooting at the end of the script and requires a power cycle
 
 ## Licence
